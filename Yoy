@@ -40,4 +40,11 @@ df_yoy['Margin_%_2024'] = df_yoy['Margin_2024'] / df_yoy['Volume_2024']
 df_yoy = df_yoy.round(4)
 
 # Reorder and export
-final_columns
+final_columns = [
+    'Customer', 'Month',
+    'Volume_2024', 'Volume_2025', 'Volume_YoY_%',
+    'Margin_2024', 'Margin_2025', 'Margin_YoY_%',
+    'Margin_%_2024', 'Margin_%_2025'
+]
+
+df_yoy[final_columns].to_excel("VAT_Impact_YoY_Output.xlsx", index=False)
