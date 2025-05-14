@@ -1,0 +1,43 @@
+import pandas as pd
+
+# Load the raw file
+df = pd.read_excel("your_raw_file.xlsx")
+
+# Ensure column names are clean
+df.columns = df.columns.str.strip()
+
+# OPTIONAL: Make sure Month is consistent (string or int)
+df['Month'] = df['Month'].astype(str)
+df['Year'] = df['Year'].astype(int)
+
+# Split 2024 and 2025 data
+df_2024 = df[df['Year'] == 2024][['Customer', 'Month', 'Sales_Volume', 'Sales_Margin']]
+df_2025 = df[df['Year'] == 2025][['Customer', 'Month', 'Sales_Volume', 'Sales_Margin']]
+
+# Rename columns for merging
+df_2024 = df_2024.rename(columns={
+    'Sales_Volume': 'Volume_2024',
+    'Sales_Margin': 'Margin_2024'
+})
+
+df_2025 = df_2025.rename(columns={
+    'Sales_Volume': 'Volume_2025',
+    'Sales_Margin': 'Margin_2025'
+})
+
+# Merge 2025 with 2024 on Customer + Month
+df_yoy = pd.merge(df_2025, df_2024, on=['Customer', 'Month'], how='left')
+
+# Calculate YoY %
+df_yoy['Volume_YoY_%'] = (df_yoy['Volume_2025'] - df_yoy['Volume_2024']) / df_yoy['Volume_2024']
+df_yoy['Margin_YoY_%'] = (df_yoy['Margin_2025'] - df_yoy['Margin_2024']) / df_yoy['Margin_2024']
+
+# Optional: Calculate Margin % per year
+df_yoy['Margin_%_2025'] = df_yoy['Margin_2025'] / df_yoy['Volume_2025']
+df_yoy['Margin_%_2024'] = df_yoy['Margin_2024'] / df_yoy['Volume_2024']
+
+# Format results
+df_yoy = df_yoy.round(4)
+
+# Reorder and export
+final_columns
