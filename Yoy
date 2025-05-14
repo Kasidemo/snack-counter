@@ -1,42 +1,41 @@
 import pandas as pd
 
-# Load your data
+# Load your raw data
 df = pd.read_excel("your_raw_file.xlsx")
 
-# Clean up column names
+# Ensure clean columns
 df.columns = df.columns.str.strip()
 
-# Ensure year/month are clean
+# Set types
 df['Year'] = df['Year'].astype(int)
 df['Month'] = df['Month'].astype(str)
 
-# Optional: Fill NA if any required columns are missing
-df[['Sales_Volume', 'Sales_Margin']] = df[['Sales_Volume', 'Sales_Margin']].fillna(0)
+# Define grouping keys (include any extra fields you want to preserve)
+group_keys = ['Customer', 'Month', 'Year']
 
-# Split 2024 and 2025
-df_2024 = df[df['Year'] == 2024].copy()
-df_2025 = df[df['Year'] == 2025].copy()
+# Aggregate by customer/month/year
+agg_df = df.groupby(group_keys, as_index=False).agg({
+    'Sales_Volume': 'sum',
+    'Sales_Margin': 'sum'
+})
 
-# Keep additional columns for reference (e.g., 'VAT_Effective')
-extra_cols = [col for col in df.columns if col not in ['Year', 'Sales_Volume', 'Sales_Margin']]
+# Split into 2024 and 2025
+df_2024 = agg_df[agg_df['Year'] == 2024].copy()
+df_2025 = agg_df[agg_df['Year'] == 2025].copy()
 
-# Build merge key
-merge_keys = ['Customer', 'Month']
-
-# Add suffix to 2024 columns
-df_2024 = df_2024[merge_keys + ['Sales_Volume', 'Sales_Margin']].rename(columns={
+# Rename columns
+df_2024 = df_2024.rename(columns={
     'Sales_Volume': 'Volume_2024',
     'Sales_Margin': 'Margin_2024'
-})
+})[['Customer', 'Month', 'Volume_2024', 'Margin_2024']]
 
-# Add suffix to 2025 columns + preserve extra fields
-df_2025 = df_2025[merge_keys + ['Sales_Volume', 'Sales_Margin'] + extra_cols].rename(columns={
+df_2025 = df_2025.rename(columns={
     'Sales_Volume': 'Volume_2025',
     'Sales_Margin': 'Margin_2025'
-})
+})[['Customer', 'Month', 'Volume_2025', 'Margin_2025']]
 
-# Merge and fill missing 2024s with 0
-df_yoy = pd.merge(df_2025, df_2024, on=merge_keys, how='left')
+# Merge 2025 with 2024 data
+df_yoy = pd.merge(df_2025, df_2024, on=['Customer', 'Month'], how='left')
 df_yoy[['Volume_2024', 'Margin_2024']] = df_yoy[['Volume_2024', 'Margin_2024']].fillna(0)
 
 # Calculate YoY % safely
@@ -48,17 +47,13 @@ df_yoy['Margin_YoY_%'] = df_yoy.apply(
     lambda row: (row['Margin_2025'] - row['Margin_2024']) / row['Margin_2024']
     if row['Margin_2024'] != 0 else 0, axis=1)
 
-# Optional margin % calculations
+# Calculate margin %
 df_yoy['Margin_%_2024'] = df_yoy.apply(
-    lambda row: row['Margin_2024'] / row['Volume_2024']
-    if row['Volume_2024'] != 0 else 0, axis=1)
+    lambda row: row['Margin_2024'] / row['Volume_2024'] if row['Volume_2024'] != 0 else 0, axis=1)
 
 df_yoy['Margin_%_2025'] = df_yoy.apply(
-    lambda row: row['Margin_2025'] / row['Volume_2025']
-    if row['Volume_2025'] != 0 else 0, axis=1)
+    lambda row: row['Margin_2025'] / row['Volume_2025'] if row['Volume_2025'] != 0 else 0, axis=1)
 
-# Round values
+# Round and export
 df_yoy = df_yoy.round(4)
-
-# Export
-df_yoy.to_excel("VAT_Impact_YOY_Final.xlsx", index=False)
+df_yoy.to_excel("VAT_YoY_Fixed.xlsx", index=False)
